@@ -1,5 +1,3 @@
-"""Utility di rete condivise tra client e server."""
-
 from __future__ import annotations
 
 import json
@@ -9,11 +7,8 @@ from typing import Any, Optional
 
 
 class ConnectionClosed(Exception):
-    """Eccezione sollevata quando il socket remoto viene chiuso."""
-
-
+    pass
 class JSONSocket:
-    """Wrapper per inviare/ricevere messaggi JSON delimitati da newline."""
 
     def __init__(self, sock: socket.socket, encoding: str = "utf-8") -> None:
         self._socket = sock
@@ -22,21 +17,17 @@ class JSONSocket:
         self._send_lock = threading.Lock()
 
     def fileno(self) -> int:
-        """Restituisce il descrittore del socket sottostante."""
         return self._socket.fileno()
 
     def settimeout(self, value: Optional[float]) -> None:
-        """Imposta il timeout sul socket sottostante."""
         self._socket.settimeout(value)
 
     def send(self, message: Any) -> None:
-        """Serializza e invia un messaggio JSON seguito da newline."""
         payload = json.dumps(message, ensure_ascii=False).encode(self._encoding) + b"\n"
         with self._send_lock:
             self._socket.sendall(payload)
 
     def receive(self, timeout: Optional[float] = None) -> Any:
-        """Riceve il prossimo messaggio JSON, gestendo buffer e timeout."""
         previous_timeout = self._socket.gettimeout()
         try:
             if timeout is not None:
@@ -62,7 +53,6 @@ class JSONSocket:
                 self._socket.settimeout(previous_timeout)
 
     def close(self) -> None:
-        """Chiude il socket sottostante."""
         try:
             self._socket.shutdown(socket.SHUT_RDWR)
         except OSError:
@@ -72,7 +62,6 @@ class JSONSocket:
 
     @property
     def socket(self) -> socket.socket:
-        """Espone il socket sottostante (read-only)."""
         return self._socket
 
 __all__ = ["JSONSocket", "ConnectionClosed"]
