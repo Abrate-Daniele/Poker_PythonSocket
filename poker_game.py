@@ -1,4 +1,5 @@
 import random
+import os
 from collections import Counter
 from enum import IntEnum
 
@@ -58,7 +59,11 @@ class Deck:
         self.shuffle()
 
     def shuffle(self):
-        random.shuffle(self.cards)
+        rng = random.SystemRandom()
+        for _ in range(3):
+            rng.shuffle(self.cards)
+        cut = rng.randint(0, len(self.cards)-1)
+        self.cards = self.cards[cut:] + self.cards[:cut]
 
     def deal(self, num_cards=1):
         

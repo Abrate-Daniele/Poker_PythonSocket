@@ -33,6 +33,7 @@ class PokerGUI:
         self.socket = None
         self.channel = None
         self.running = False
+        self.last_actions = []
 
         self._build_connect_ui()
 
@@ -111,14 +112,14 @@ class PokerGUI:
         for w in self.root.winfo_children():
             w.destroy()
 
-        top = tk.Frame(self.root, pady=8, bg="#2b3a36")
+        top = tk.Frame(self.root, pady=8, bg="#1b2f2a")
         top.pack(fill='x')
 
-        left = tk.Frame(top, bg="#2b3a36")
+        left = tk.Frame(top, bg="#1b2f2a")
         left.pack(side='left', anchor='w', padx=8)
-        center = tk.Frame(top, bg="#2b3a36")
+        center = tk.Frame(top, bg="#1b2f2a")
         center.pack(side='left', expand=True)
-        right = tk.Frame(top, bg="#2b3a36")
+        right = tk.Frame(top, bg="#1b2f2a")
         right.pack(side='right', anchor='e', padx=8)
 
         self.my_name_label = tk.Label(left, text=self.player_name or "Tu", font=('TkDefaultFont', 10, 'bold'), bg="#2b3a36", fg="#eee")
@@ -126,9 +127,9 @@ class PokerGUI:
         self.my_chips_label = tk.Label(left, text="Chips: -", bg="#2b3a36", fg="#ddd")
         self.my_chips_label.pack(anchor='w')
 
-        self.phase_label = tk.Label(center, text="Fase: -", bg="#2b3a36", fg="#eee")
+        self.phase_label = tk.Label(center, text="Fase: -", bg="#1b2f2a", fg="#eee")
         self.phase_label.pack()
-        self.pot_label = tk.Label(center, text="Piatto: 0", bg="#2b3a36", fg="#eee")
+        self.pot_label = tk.Label(center, text="Piatto: 0", bg="#1b2f2a", fg="#eee")
         self.pot_label.pack()
 
         self.opponent_name_label = tk.Label(right, text="Avversario", font=('TkDefaultFont', 10, 'bold'), bg="#2b3a36", fg="#eee")
@@ -139,31 +140,36 @@ class PokerGUI:
         self.winner_label = tk.Label(self.root, text="", fg='green', font=('TkDefaultFont', 11, 'bold'), bg="#153e2e")
         self.winner_label.pack(pady=(2, 6))
 
-        log_frame = tk.Frame(self.root, bg="#1f2e2a")
-        tk.Label(log_frame, text="Log azioni:", bg="#1f2e2a", fg="#eee").pack(anchor='w')
-        self.log_text = tk.Text(log_frame, height=6, state='disabled', bg="#2b3a36", fg="#eee")
-        self.log_text.pack(fill='x')
+        table = tk.Frame(self.root, bg="#0f2419", padx=20, pady=16)
+        table.pack(fill='x', expand=False, padx=16, pady=(4, 8))
 
-        mid = tk.Frame(self.root, pady=8, bg="#1f2e2a")
-        mid.pack(fill='x')
-        tk.Label(mid, text="Carte comuni:", bg="#1f2e2a", fg="#eee").pack()
-        self.community_frame = tk.Frame(mid, bg="#1f2e2a")
-        self.community_frame.pack()
+        board_header = tk.Label(table, text="Carte comuni", bg="#0f2419", fg="#f0f0f0", font=self.heading_font)
+        board_header.pack(pady=(0, 6))
+        self.community_frame = tk.Frame(table, bg="#0f2419")
+        self.community_frame.pack(pady=(0, 10))
 
-        bottom = tk.Frame(self.root, pady=8, bg="#1f2e2a")
-        bottom.pack(fill='x')
-        tk.Label(bottom, text="Le tue carte:", bg="#1f2e2a", fg="#eee").pack()
-        self.mycards_frame = tk.Frame(bottom, bg="#1f2e2a")
+        separator = tk.Frame(table, bg="#1f3b2c", height=2)
+        separator.pack(fill='x', pady=8)
+
+        mycards_header = tk.Label(table, text="Le tue carte", bg="#0f2419", fg="#f0f0f0", font=self.heading_font)
+        mycards_header.pack(pady=(4, 6))
+        self.mycards_frame = tk.Frame(table, bg="#0f2419")
         self.mycards_frame.pack()
 
-        self.actions_container = tk.Frame(self.root, pady=12, bg="#2b3a36")
+        log_frame = tk.Frame(self.root, bg="#10231c", padx=16, pady=10)
+        log_frame.pack(fill='x', pady=(0, 8))
+        tk.Label(log_frame, text="Azioni recenti", bg="#10231c", fg="#eee", font=('TkDefaultFont', 10, 'bold')).pack(anchor='w', pady=(0,4))
+        self.action_feed = tk.Frame(log_frame, bg="#10231c")
+        self.action_feed.pack(fill='x')
+
+        self.actions_container = tk.Frame(self.root, pady=12, bg="#1b2f2a")
         self.actions_container.pack(fill='x')
-        self.suggestion_label = tk.Label(self.actions_container, text="", bg="#2b3a36", fg="#ffd700", font=('TkDefaultFont', 10, 'bold'))
+        self.suggestion_label = tk.Label(self.actions_container, text="", bg="#1b2f2a", fg="#ffd700", font=('TkDefaultFont', 10, 'bold'))
         self.suggestion_label.pack(pady=(0,6))
-        self.actions_frame = tk.Frame(self.actions_container, bg="#2b3a36")
+        self.actions_frame = tk.Frame(self.actions_container, bg="#1b2f2a")
         self.actions_frame.pack()
 
-        log_frame.pack(fill='x', padx=8, pady=8)
+        self._render_action_feed()
         self._show_waiting()
 
         self.root.protocol("WM_DELETE_WINDOW", self.on_closing)
@@ -171,7 +177,7 @@ class PokerGUI:
     def _show_waiting(self):
         for w in self.actions_frame.winfo_children():
             w.destroy()
-        tk.Label(self.actions_frame, text="In attesa...", fg="#bbb", bg="#2b3a36").pack()
+        tk.Label(self.actions_frame, text="In attesa...", fg="#bbb", bg="#1b2f2a").pack()
 
     def receive_messages(self):
         while self.running:
@@ -226,6 +232,22 @@ class PokerGUI:
                 text += f" ({reason})"
             messagebox.showinfo("Risultato mano", text)
             try:
+                all_cards = message.get('all_cards', {})
+                opp_cards = None
+                for pid_str, cards in all_cards.items():
+                    try:
+                        pid = int(pid_str)
+                    except Exception:
+                        pid = pid_str
+                    if pid != self.player_id:
+                        opp_cards = cards
+                        break
+                if opp_cards:
+                    opp_str = ', '.join([f"{c.get('value')}{c.get('suit')}" for c in opp_cards])
+                    self._log(f"Carte avversario: {opp_str}")
+            except Exception:
+                pass
+            try:
                 if pot is not None:
                     self.winner_label.config(text=f"Ultimo vincitore: {winner} (+{pot})")
                 else:
@@ -274,25 +296,51 @@ class PokerGUI:
             return
 
     def _log(self, text_line):
-        try:
-            self.log_text.config(state='normal')
-            self.log_text.insert('end', text_line + '\n')
-            self.log_text.see('end')
-            self.log_text.config(state='disabled')
-        except Exception:
-            pass
+        self.last_actions.append(text_line)
+        self.last_actions = self.last_actions[-6:]
+        self._render_action_feed()
+
+    def _render_action_feed(self):
+        for w in self.action_feed.winfo_children():
+            w.destroy()
+        cols = 3
+        for idx, line in enumerate(self.last_actions):
+            color = '#7f8c8d'
+            low = line.lower()
+            if 'fold' in low or 'foldato' in low or 'forced_fold' in low:
+                color = '#c0392b'
+            elif 'check' in low:
+                color = '#95a5a6'
+            elif 'call' in low or 'chiamato' in low:
+                color = '#2980b9'
+            elif 'raise' in low or 'rilanciato' in low:
+                color = '#27ae60'
+            elif 'all-in' in low:
+                color = '#e67e22'
+            pill = tk.Label(self.action_feed, text=line, bg=color, fg='#ffffff', padx=8, pady=4)
+            r = idx // cols
+            c = idx % cols
+            pill.grid(row=r, column=c, padx=4, pady=4, sticky='w')
+        for c in range(3):
+            self.action_feed.grid_columnconfigure(c, weight=1)
 
     def update_game_display(self):
         for w in self.community_frame.winfo_children():
             w.destroy()
         for c in (self.game_state or {}).get('community_cards', []):
             card = Card.from_dict(c)
-            tk.Label(self.community_frame, text=f"{card.value}{card.suit}").pack(side='left', padx=4)
+            try:
+                self._render_card(self.community_frame, card)
+            except Exception:
+                tk.Label(self.community_frame, text=f"{card.value}{card.suit}").pack(side='left', padx=4)
 
         for w in self.mycards_frame.winfo_children():
             w.destroy()
         for c in self.my_cards:
-            tk.Label(self.mycards_frame, text=str(c)).pack(side='left', padx=4)
+            try:
+                self._render_card(self.mycards_frame, c)
+            except Exception:
+                tk.Label(self.mycards_frame, text=str(c)).pack(side='left', padx=4)
 
         if self.game_state:
             self.phase_label.config(text=f"Fase: {self.game_state.get('phase')}")
@@ -336,6 +384,15 @@ class PokerGUI:
         amt = simpledialog.askinteger("Raise", "Inserisci importo:")
         if amt is not None:
             self.send_action('raise', amt)
+
+    def _render_card(self, parent, card):
+        frame = tk.Frame(parent, bg="#ffffff", bd=0, highlightthickness=1, highlightbackground="#cccccc")
+        frame.pack(side='left', padx=6, pady=4)
+        rank = tk.Label(frame, text=card.value, font=('Helvetica', 12, 'bold'), bg="#ffffff")
+        suit_color = '#e74c3c' if card.suit in ['♥', '♦'] else '#2c3e50'
+        suit = tk.Label(frame, text=card.suit, font=('Helvetica', 12), fg=suit_color, bg="#ffffff")
+        rank.pack(padx=8, pady=(6,0))
+        suit.pack(padx=8, pady=(0,6))
 
     def _on_fold(self):
         self._last_action_fold = True

@@ -38,7 +38,7 @@ class ServerPoker:
 
     """
 
-    def __init__(self, host='localhost', porta=5555):
+    def __init__(self, host='0.0.0.0', porta=5555):
         # Parametri di rete
         self.host = host
         self.porta = porta
@@ -543,8 +543,7 @@ class ServerPoker:
         }
 
         for pid, giocatore in self.stato_gioco['giocatori'].items():
-            if not giocatore['foldato']:
-                dati_risultato['all_cards'][pid] = [c.to_dict() for c in giocatore['carte']]
+            dati_risultato['all_cards'][pid] = [c.to_dict() for c in giocatore['carte']]
 
         self.broadcast(dati_risultato)
         self.broadcast_stato_gioco()
@@ -706,7 +705,12 @@ class ServerPoker:
 # =============================================================================
 
 if __name__ == "__main__":
-    server = ServerPoker()
+    host = os.environ.get('POKER_HOST') or (sys.argv[1] if len(sys.argv) > 1 else '0.0.0.0')
+    try:
+        porta = int(os.environ.get('POKER_PORT') or (sys.argv[2] if len(sys.argv) > 2 else 5555))
+    except ValueError:
+        porta = 5555
+    server = ServerPoker(host=host, porta=porta)
     
     try:
         server.avvia()
